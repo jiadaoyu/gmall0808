@@ -1,0 +1,47 @@
+完成登录注册功能
+
+
+开发流程：
+	1、创建数据库+user表
+		bs_user:   id int 主键自增
+					username varchar  not null  unique
+					password varchar	not null
+					email	varchar  unique
+					CREATE TABLE bs_user(
+					 id INT(11) PRIMARY KEY AUTO_INCREMENT,
+					 username VARCHAR(100) UNIQUE NOT NULL,
+					 `password` VARCHAR(100) NOT NULL,
+					 email VARCHAR(100) UNIQUE
+					)
+	2、创建user表的实体类：User
+	3、导入JDBC操作需要的jar包
+		mysql驱动包
+		数据库连接池druid
+		dbutils包
+	4、创建JDBCUtils提供获取连接和释放连接的方法
+	5、创建BaseDao提供数据库操作的基本方法
+	6、UserDao java代码和bs_user表交互的类
+		由于dao层的需求经常发生变化，开发中一般面向接口编程(使用接口约束开发)
+		interface UserDao   
+		class UserDaoImpl extends BaseDao implements UserDao
+			根据账号密码查询用户对象： User：根据账号密码查询到的用户对象 getUserByUsernameAndPassword(User user:登录时用户提交账号密码封装的对象);
+			保存用户注册数据到数据库中： int saveUser(User user:用户提交注册参数封装的用户对象);
+	7、测试UserDao
+	8、创建LoginServlet处理登录请求
+	9、修改login.html页面的提交地址 给LoginServlet	
+	10、登录失败转发到登录页面时，页面的样式丢失
+		原因：登录失败时使用了转发，转发会造成相对路径失效
+		解决：使用绝对路径
+			还可以使用base+相对路径
+	11、完成注册功能
+		创建RegistServlet处理注册请求
+		修改regist.html的表单提交地址为RegistServlet
+	12、项目中使用三层架构
+		添加业务层     处理servlet接受的请求的业务 ， 如果需要和数据库交互需要调用dao的方法
+			interface UserService
+			class UserServiceImpl 
+				User login(User user); 处理用户登录的业务
+				boolean regist(User user); 处理用户注册的业务
+		修改LoginServlet和RegistServlet处理业务时调用的Dao改为 调用service方法
+	
+	

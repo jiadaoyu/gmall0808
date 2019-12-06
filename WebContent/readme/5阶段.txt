@@ -1,0 +1,167 @@
+五阶段：   在项目中使用Session对象
+
+
+	1、保持登录状态+注销
+		用户提交登录请求，UserServlet.login   如果登录成功将查询到的user对象共享到session中
+		在user_header.jsp页面中 根据登录状态判断显示哪个状态栏
+		
+		
+		用户登录成功后，还可以注销
+			UserServlet中提供logout方法处理注销请求
+			user_header.jsp页面的注销超链接点击时提交请求给logout方法
+	
+	2、注册页面的表单数据重复提交[验证码]
+		验证码图片的使用：
+			用户访问注册页面时，页面中生成一个验证码字符串
+			再根据字符串生成一个验证码图片设置到验证码图片img标签中交给浏览器
+			在session域中保存一份
+			
+			用户提交注册请求前会按照验证码图片输入验证码字符串提交给服务器
+			注册Servlet中 获取用户提交的验证码字符串，再获取服务器session中保存的验证码字符串
+			比较两个字符串，如果一致，可以注册
+			如果不一致，验证码错误或者表单重复提交
+			服务器session中的验证码使用后需要销毁
+		开发中使用第三方的验证码图片生成工具实现验证码功能
+			kaptcha.jar
+			2.1 导入jar包
+			2.2 kaptcha中提供了一个处理请求并返回一个验证码图片的KapchaServlet
+				- 接受请求后会创建一个验证码字符串
+				- 将验证码字符串存到session中
+				- 返回验证码图片
+				需要在项目的web.xml中配置
+				配置后就可以直接通过url-pattern访问Servlet得到验证码图片
+			2.3 在regist.jsp页面的  验证码图片img标签中  src地址修改为code.jpg访问KapchaServlet
+			2.4 在配置文件中通过给KapchaServlet设置初始化参数修改生成验证码图片的样式
+			
+			
+			-- 在UserServlet中  regist方法内
+				获取用户提交的注册验证码参数
+				获取服务器中存储到session中的验证码字符串
+				比较	字符串是否一致
+					如果一样，处理注册请求
+					如果不一样，验证码错误或重复提交，转发到注册页面让用户继续注册并给出错误提示
+				session中的验证码使用完后需要销毁
+			-- 点击验证码图片刷新图片的功能
+				通过js给验证码图片绑定单击事件
+				点击img标签时，重新访问KapchaServlet生成新的验证码图片显示在img中
+				
+				
+				
+	3、购物车+订单
+		用户在首页 点击加入购物车按钮时 提交请求给服务器 ，需要将图书添加到购物车中
+		1、添加图书 到购物车
+			  创建CartServlet  处理和购物车相关的请求
+		-通过购物车对象调用业务方法处理业务
+		2、在购物车页面显示购物车数据
+		3、小数的精度问题：
+				BigDecimal
+				CartItem类：   计算amount
+				Cart类中：  计算totalAmount
+		4、完成清空购物车的功能
+			CartServlet.clear方法：处理清空购物车的请求
+		5、完成删除指定购物项的功能
+			CartServlet.deleteCartItem()方法：  处理删除指定购物项的请求	
+			
+		6、修改指定购物项的数量
+			修改了cart.jsp页面 使用表单项显示购物项的数量
+				- 给表单项绑定内容改变的监听：   当表单项的value值改变并且失去了焦点时才需要向服务器发送请求
+			当表单项数量被用户修改后应该提交请求给服务器CartServlet.updateCount 处理修改购物项数量的请求
+	4、结账操作
+	
+		点击去结账时
+			4.1 应该检查用户是否登录
+			4.2 将购物车的信息转为订单信息存到数据库[]
+				购物车信息：  cart对象  和用户一对一的关系
+				
+				订单信息：  有购物车转换而成，购物车和订单一对一的关系
+						一个用户可以有多个订单  一对多
+						用户和订单如何关联
+					订单编号
+					订单创建的时间
+					订单的状态
+					订单所属用户id
+					-->购物车的属性
+					订单中商品数量   
+					订单中商品总价格
+				
+				订单项信息： 由于购物项集合数据没法和订单一起保存，需要单独存储  
+						一条购物项对应一个订单项
+					
+			4.3 修改图书的销量库存
+			4.4 结账后应该清空购物车
+			4.5 跳转到成功页面显示订单号[订单id]
+			
+		开发流程：
+			1、创建
+				bs_order订单表：保存订单数据   --> 根据购物车转换    订单数据通过用户id和用户关联
+					id varchar; 订单id要求唯一不重复，尽量少保存订单信息，便于售后使用[一般通过用户id+暗号 +时间戳   ]
+					total_count int;  订单商品总数量
+					total_amount double ; 订单商品总金额
+					state int;  订单状态：   0 未发货 ，  1已发货 ，2交易完成  
+					order_time;  订单创建的时间  
+					user_id;  用户id，决定当前订单属于哪个用户
+							可以通过外检关联用户表的id， 保证user_id没有错误
+				bs_orderitem订单项表	：保存订单项的数据 --> 根据购物项转换   订单项根据订单id决定当前订单项属于哪个订单
+							保存购买时商品信息
+					id;
+					img_path  ;
+					author;
+					title;
+					price;
+					amount;
+					count;
+					order_id;  通过订单id决定当前订单项属于哪个订单 
+							外键关联订单表的id
+				CREATE TABLE bs_order (
+				 id VARCHAR(100) PRIMARY KEY,
+				 order_time DATETIME,
+				 state INT(2),
+				 total_count INT(11),
+				 total_amount DOUBLE(11,2),
+				 user_id INT(11),
+				 FOREIGN KEY(user_id) REFERENCES bs_user(id)
+				
+				);
+				
+				CREATE TABLE bs_orderitem(
+				 id INT(11) PRIMARY KEY AUTO_INCREMENT,
+				 title VARCHAR(100),
+				 author VARCHAR(100),
+				 img_path VARCHAR(100),
+				 price DOUBLE(11,2),
+				 COUNT INT(11),
+				 amount DOUBLE(11,2),
+				 order_id  VARCHAR(100),
+				 FOREIGN KEY (order_id) REFERENCES bs_order(id)
+				);			
+							
+			2、创建对应的实体类
+				Order/OrderItem
+			3、创建
+				OrderDao+OrderDaoImpl
+					订单相关的操作：
+						保存订单到数据库中 ：int saveOrder(Order order);
+						根据用户id查询用户的订单集合的方法：List<Order>  getOrdersByUserId(int userId);
+						管理员查询所有订单集合的方法：  List<Order> getAllOrders();
+						更改订单状态值的方法：    updateStateByOrderId(String orderId , int state);
+				OrderItemDao+OrderItemDaoImpl
+					订单项的操作：
+						保存订单项到数据库中：int  saveOrderItem(OrderItem item);
+						根据订单id查询订单项集合的方法：List<OrderItem>  getOrderItemsByOrderId(String orderId);
+			4、创建OrderService+OrderServiceImpl
+			
+			5、创建OrderClientServlet处理用户订单相关的请求
+			
+			
+			6、完成查询用户订单的功能
+			
+			7、使用fmt标签库格式化处理日期时间
+			
+			8、完成用户收货功能：本质就是修改订单的状态：  将订单状态从1改为2
+			
+			9、完成管理员查询所有订单集合的方法
+				OrderManagerServlet
+				
+			10、使用批处理优化项目：批量保存订单项和批量修改图书销量库存			
+			
+			

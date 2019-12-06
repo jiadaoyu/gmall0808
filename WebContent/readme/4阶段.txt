@@ -1,0 +1,194 @@
+四阶段： 
+
+
+任务：
+	1、项目跟上
+	2、将登录注册练习的页面修改为jsp，并且完成登录注册失败的错误提示，表单数据回显
+	3、jstl  foreach 标签多加练习
+
+ 使用EL替代页面中的jsp表达式
+	1、login.jsp 获取域中的登录失败错误提示显示  
+	2、regist.jsp  获取失败消息提示+表单数据回显
+	3、base.jsp 拼接url地址
+
+
+
+使用jstl替代页面中的jsp脚本片段
+
+
+
+实现功能：   (管理员和用户访问的Servlet一般分开开发)
+	管理员端： 图书管理页  图书集合的遍历显示
+		步骤：
+			1、分层：
+				表现层：  服务员   和前端交互
+					BookManagerServlet extends BaseServlet：   处理管理员的图书相关请求
+							findAllBooks(); 查询所有图书的方法   访问此方法必须传递type=findAllBooks参数
+								- 调用service层查询图书集合
+								- 设置到request域中
+								- 转发到pages/manager/book_manager.jsp遍历展示集合中的数据
+				业务逻辑层：   厨师    servlet接受到请求后的业务交给业务层处理[连接表现层和数据层的桥梁]
+					BookService 
+					BookServiceImpl
+							List<Book> findAllBooks();  处理查询所有图书集合的业务方法
+								- 调用dao层查询数据库数据
+				数据持久化层：  采购     完成对数据库数据的增删改查
+					BookDao
+					BookDaoImpl
+							List<Book> getAllBooks();   查询数据库图书集合的方法
+								问题：  查询时 图书封面地址没有获取到
+								原因： BeanHandler在将查询到的数据库的数据封装为Book对象时
+										会根据查询到数据的字段名去Book类中查找对应的set方法[setImg_path]
+										没有找到则设置失败
+								解决：  如果查询到的字段名和javabean的属性名一致就可以解决问题
+										如果查询时需要封装对象，使用别名保证查询的列名和javabean属性一致
+							Book getBookById(String id);   查询指定id图书的方法
+							int saveBook(Book book);添加图书到数据库的方法    保存时的图书没有图书id的，保存数据数据库自动分配
+							int deleteBookById(String id);删除指定的图书的方法
+							int updateBookById(Book book);修改指定图书的方法 在查询到的图书的基础上进行修改，根据id修改
+								
+				数据库表：   数据源
+					bs_book  图书表
+						id
+						title
+						author
+						sales
+						stock
+						price
+						img_path    
+						-- 建表语句
+						CREATE TABLE bs_book(
+						 id INT(11) PRIMARY KEY AUTO_INCREMENT,
+						 title VARCHAR(100) NOT NULL,
+						 author VARCHAR(100),
+						 price DOUBLE(11,2) ,
+						 sales INT(11),
+						 stock INT(11),
+						 img_path VARCHAR(100)
+						);
+				实体类： Book
+			2、完成管理员端查询所有图书并展示的功能
+				List<Book> BookService.findAllBooks();
+				BookManagerServlet.findAllBooks()  
+			3、完成删除指定图书的功能
+				boolean BookService.deleteBook(String bookId);
+				BookManagerServlet.deleteBook();
+				book_manager.jsp页面中修改删除超链接并绑定单机事件，点击时给用户提示
+			4、完成添加图书的功能
+				点击book_manager.jsp页面时，跳转到book_add.jsp页面收集要添加图书的信息，提交时应该提交给BookManagaerServlet保存数据到数据库中
+				boolean BookService.addBook(Book book);  保存图书的业务方法
+				BookManagerServlet.addBook();   处理保存图书请求的方法
+				问题： 保存图书时，出现了请求乱码[页面中提交的字符串保存到数据库时乱码了]
+					post请求乱码
+					解决：给request对象设置解析请求体数据的编码格式为UTF-8
+				
+			5、完成修改图书的功能	
+				5.1 点击修改超链接
+					将要修改的图书数据携带到book_edit.jsp页面显示
+					- 点击修改时，将要修改图书的id提交给BookManagerServlet.findBook
+					- findBook方法查询到图书对象后设置到域中然后再转发到book_edit.jsp页面显示
+					Book BookService.findBook(String bookId);   处理查询指定id图书的业务方法
+					BookManagerServlet.findBook(); 处理查询图书的请求方法
+					
+				5.2 管理员在book_edit.jsp页面中点击提交时应该将修改后的图书数据提交给BookManagerServlet处理
+					boolean BookService.updateBook(Book book);//修改图书的参数应该包含id在内的所有数据
+					BookManagerServlet.updateBook();   处理修改的请求
+			6、分页
+				如果数据量比较大，一次性全部查询，服务器执行花费时间长，用户可读性较差
+				开发中不推荐使用不带条件的sql查询语句
+				使用分页查询：   
+					技术基础：  limit关键字
+							select * from bs_book limit index , size;  index:查询的起始索引值(从0开始计算) size：每次查询的记录条数
+					-- 页码 pageNumber， 每页显示的记录条数 size，查询的分页数据的起始索引值index：
+						/*
+							pageNumber[用户传入的参数]      size[项目中设置好的]        index
+							1				4[5]			    0[0]
+							2				4[5]				4[5]
+							3				4[5]				8[10]
+							index = (pageNumber-1)*size;
+						
+						*/
+				6.1 创建分页类
+				6.2 完成分页功能
+					- 分层架构：三层互相协作封装分页页面需要显示的数据page对象
+					在/pages/manager/manager.jsp页面中点击图书管理超链接时，请求应该提交给BookManagerServlet.findPage的处理分页请求的方法
+							- 并且提交默认查询的页码pageNumber
+							- 设置每页显示的记录条数 size
+							- 调用service处理分页的业务并返回page对象，设置到域中共享，转发到book_manager.jsp页面获取page对象遍历显示数据
+					在Page<Book>  BookService.findPage(String pageNumber ,int size)中提供处理分页业务的方法
+							- 创建Page<Book>对象
+							- 将参数设置给page对象[已知：pageNumber，size ， index]
+							- 剩余数据需要数据库查询才能得到，交给BookDao处理
+					在 Page<Book> BookDao.getPage(Page<Book> page)中提供查询分页数据的方法[对service处理过的page对象再次封装属性值]
+							- 查询bs_book表图书的总数量 totalCount 并设置给page对象[已知：pageNumber，size ， index，totalCount ，totalPage ]
+							- 查询分页对象需要显示的图书集合data 并设置给page对象[所有值都查询到得到]
+							- 返回封装完成的page对象
+							
+				6.3 页码的优化
+					如果页码过多，页面显示可读性差
+					每页最多显示5个页码:  动态的给遍历页码设置begin和end的值
+					[1] 2 3 4 5
+					1 [2] 3 4 5
+					1 2 [3] 4 5
+					2 3 [4] 5 6
+					3 4 [5] 6 7
+					
+						如果总页码<=5   begin=1 , end=totalPage
+						如果总页码>5    
+								如果当前页码<=3   begin=1 , end=5
+								如果当前页码>3    begin=pageNumber-2 , end= pageNumber+2	
+					
+				 6.4 分页导航栏的提取
+				 	分页导航栏中 只有超链接的url地址访问Servlet和方法名不通用，其他都通用	
+				 		将需要动态设置的值修改为变量
+				 		封装page对象时除了封装页面需要显示的分页数据还需要封装地址栏超链接需要使用的分页路径
+				 	BookManagerServlet中findPage方法接受到访问分页的请求时 可以获取分页需要使用的Servlet名字和方法名存到域中共享
+					
+	用户端：   
+		1、首页图书遍历显示
+			BookClientServlet.findPage  处理用户查询分页的请求
+			BookService和BookDao中已经提供了查询分页数据的方法							
+			问题1： 如果page对象不存在，使用分页导航栏会报错[使用分页导航栏时需要检查]
+
+			问题2： index页面不能被直接访问，需要先访问BookClientServlet查询分页对象然后再到index显示数据
+				将index页面的内容提取到另外一个页面
+				访问index页面时直接转发到BookClinetServlet的findPage方法，再去另外一个页面显示数据
+				
+		2、完成首页按价格查询分页数据的功能[比之前的分页多了价格区间]
+			BookClientServlet.findPageByPrice();  处理按价格查询分页数据的请求
+				- 获取参数： pageNumber ， size ， minPrice ， maxPrice
+				- 调用业务层处理分页查询的业务 返回page对象
+				- 设置到域中再交给list页面显示
+			Page<Book> BookService.findPageByPrice(String pageNumber , int size ,String minPrice , String maxPrice );   处理价格查询分页的业务
+				- 创建Page对象设置对应的参数
+				- 将数据进行类型转换
+				- 调用dao查询分页需要的数据设置给page对象
+			Page<Book> BookDao.getPageByPrice(Page<Book> page , double min , double max);
+				- 查询价格区间的数据并设置给page对象
+				SELECT * FROM bs_book WHERE price BETWEEN 22 AND 44    LIMIT 0 , 4;
+				SELECT COUNT(*) FROM bs_book WHERE price BETWEEN 22 AND 44 ;
+
+项目优化：
+		1、修改和添加后，应该访问BookManagerServlet的findPage方法
+		
+		2、修改之后跳转回修改之前的页面
+			修改的执行流程
+				点击book_manager.jsp页面的修改超链接
+					- 请求先提交给BookManagerServlet.findBook()  ： String ref = request.getHeader("referer")
+							可以通过request域对象共享ref数据
+					- Servlet查询到图书后再转发到book_edit.jsp显示要修改的图书：   从域中可以获取到ref
+							将ref作为一个隐藏域数据提交给updateBook方法
+					- 管理员修改了之后点击提交请求提交给BookManagerServlet.updateBook()： 从请求参数中获取表单提交的ref参数
+					- Servlet处理了修改后希望回到  点击修改超链接所在的页面：  重定向回ref参数地址
+					
+			web资源共享数据：
+				域对象
+				请求参数
+				表单数据		
+					
+					
+					
+					
+
+
+		

@@ -1,0 +1,72 @@
+在项目中使用jsp技术[让网页动态显示数据]
+
+	复制项目需要修改项目名+webproject settings 中的上下文路径
+
+	1、将所有的页面修改为jsp页面
+		html和jsp的区别：jsp第一行多了page指令
+		方法1：  不用
+			创建一个和html页面同名的jsp页面，然后将html内容拷贝到新页面中
+		方法2：
+			先将page指令添加到html页面中
+			然后修改页面的后缀为jsp
+	
+	2、提取页面共有的部分，再通过include静态包含到需要使用的页面中
+		- 将所有页面需要使用的base标签+link引入css样式+script引入jquery文件的标签提取到一个页面中
+		- 用户页面 的 登录的状态栏
+		- 管理员 右上角状态栏
+		2.1 将所有页面都需要使用的内容提取到base.jsp页面中  放到WEB-INF/include
+			base标签中的地址可以使用request对象动态获取拼接
+			在所有的页面中通过include静态包含base页面[ <%@include file="/WEB-INF/include/base.jsp" %>  ]
+		2.2 将用户页面的登录状态栏提取成一个页面 user_header.jsp	放到WEB-INF/include
+			- 未登录和已登录的状态，两个是互斥的应该根据登录状态决定显示哪一个
+		2.3 将manager文件夹下页面中的共有部分提取为  manager_header.jsp  放到WEB-INF/include
+		
+		2.4 修改所有页面中的超链接和base标签进行拼接
+			修改所有html页面超链接后缀为jsp
+			修改Servlet中转发重定向的地址后缀名为jsp
+		
+		
+		
+	3、登录失败转发到登录页面可以通过jsp技术给用户提示
+		- LoginServlet中判断用户登录失败时 可以在request域中设置错误消息，然后再转发的页面中取出显示
+			login.jsp页面  显示错误消息的span中根据情况判断显示哪个文本
+	
+	4、注册失败转发到注册页面时也可以给出错误提示
+	
+	
+	
+	5、注册失败时转发到注册页面可以将注册失败的不重要的信息在表单中回显
+		
+	
+	6、LoginServlet和RegistServlet一个只能处理单一的请求
+		模拟UserService 将一类请求归类使用同一个Servlet处理
+		
+		UserServlet：  统一处理和用户相关的请求
+			表单数据提交给Servlet时需要告诉servlet请求的目的[Servlet可以调用对应的方法处理]
+			Servlet针对不同的需求创建不同的方法
+
+		以后项目需求扩展时，产生和其它操作相关的请求，仍然需要创建新的Servlet处理
+			例如： BookServlet
+				CartServlet
+				OrderServlet
+				
+			模仿HttpServlet： 为什么所有的继承HttpServlet的子类都会执行到doGet方法中
+			也可以通过自定义父类通过反射调用子类的方法
+			
+			用户访问UserServlet时，服务器会调用生命周期方法处理请求
+				构造器：  创建对象
+				init
+				HttpServlet.service()
+				HttpServlet.service(HttpServletRequest,HttpServletResponse);
+				-- 创建BaseServlet继承HttpServlet，并实现doGet和doPost方法
+				BaseServlet.doGet()
+						- 获取请求参数type值[方法名]
+						- this代表UserServlet的对象
+						- this.getClass() , 形参列表确定
+						- 通过反射查找类中的方法并通过this调用type对应的方法
+				UserServlet继承BaseServlet，并删除doGet和doPost
+				UserServlet.type
+
+
+
+
